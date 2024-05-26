@@ -1,0 +1,147 @@
+version: "3.7"
+services:
+  data-prepper:
+    restart: unless-stopped
+    container_name: data-prepper
+    image: opensearchproject/data-prepper:latest
+    volumes:
+      - ./data-prepper/trace_analytics_no_ssl.yml:/usr/share/data-prepper/pipelines/pipelines.yaml
+      - ./data-prepper/data-prepper-config.yaml:/usr/share/data-prepper/config/data-prepper-config.yaml
+    environment:
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+    ports:
+      - "21890:21890"
+    networks:
+      - my_network
+    depends_on:
+      - opensearch
+  opensearch:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch
+      - discovery.seed_hosts=opensearch
+      - cluster.initial_cluster_manager_nodes=opensearch
+      - bootstrap.memory_lock=true  # along with the memlock settings below, disables swapping
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m  # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=PA$$word@123
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536  # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    volumes:
+      - opensearch-data1:/usr/share/opensearch/data
+    ports:
+      - 9200:9200
+      - 9600:9600  # required for Performance Analyzer
+    networks:
+      - my_network
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: opensearch-dashboards
+    ports:
+      - 5601:5601
+    expose:
+      - '5601'
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: true
+    networks:
+      - my_network
+
+#  otel-collector:
+#    restart: unless-stopped
+#    image: otel/opentelemetry-collector:0.24.0
+#    command: ["--config=/etc/otel-collector-config.yml"]
+#    volumes:
+#      - ./data-prepper/otel-collector-config.yml:/etc/otel-collector-config.yml
+#      - ../demo/demo-data-prepper.crt:/etc/demo-data-prepper.crt
+#    ports:
+#      - "55680:55680"
+#      - "9411:9411"
+#    depends_on:
+#      - data-prepper
+#    networks:
+#      - my_network
+volumes:
+  opensearch-data1:
+#  opensearch-data2:
+networks:
+  my_network:
+
+#---
+#version: '3'
+#services:
+#  opensearch-node1:
+#    image: opensearchproject/opensearch:latest
+#    container_name: opensearch-node1
+#    environment:
+#      - cluster.name=opensearch-cluster
+#      - node.name=opensearch-node1
+#      - discovery.seed_hosts=opensearch-node1,opensearch-node2
+#      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
+#      - bootstrap.memory_lock=true  # along with the memlock settings below, disables swapping
+#      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m  # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+#      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=PA$$word@123    # Sets the demo admin user password when using demo configuration, required for OpenSearch 2.12 and higher
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#      nofile:
+#        soft: 65536  # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+#        hard: 65536
+#    volumes:
+#      - opensearch-data1:/usr/share/opensearch/data
+#    ports:
+#      - 9200:9200
+#      - 9600:9600  # required for Performance Analyzer
+#    networks:
+#      - opensearch-net
+#  opensearch-node2:
+#    image: opensearchproject/opensearch:latest
+#    container_name: opensearch-node2
+#    environment:
+#      - cluster.name=opensearch-cluster
+#      - node.name=opensearch-node2
+#      - discovery.seed_hosts=opensearch-node1,opensearch-node2
+#      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
+#      - bootstrap.memory_lock=true
+#      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+#      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=PA$$word@123
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#      nofile:
+#        soft: 65536
+#        hard: 65536
+#    volumes:
+#      - opensearch-data2:/usr/share/opensearch/data
+#    networks:
+#      - opensearch-net
+#  opensearch-dashboards:
+#    image: opensearchproject/opensearch-dashboards:latest
+#    container_name: opensearch-dashboards
+#    ports:
+#      - 5601:5601
+#    expose:
+#      - '5601'
+#    environment:
+#      OPENSEARCH_HOSTS: '["https://opensearch-node1:9200","https://opensearch-node2:9200"]'
+#    networks:
+#      - opensearch-net
+#
+#volumes:
+#  opensearch-data1:
+#  opensearch-data2:
+#
+#networks:
+#  opensearch-net:
+
+#kibanaserver
